@@ -20,23 +20,20 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        working-directory: photo-gallery
         run: npm install
 
       - name: Build Web Assets
-        working-directory: photo-gallery
         run: npm run build
 
       - name: Sync Capacitor iOS
-        working-directory: photo-gallery
         run: npx cap sync ios
 
       - name: Install CocoaPods
-        working-directory: photo-gallery/ios/App
+        working-directory: ios/App
         run: pod install
 
       - name: Build iOS App (.app)
-        working-directory: photo-gallery/ios/App
+        working-directory: ios/App
         run: |
           xcodebuild clean build \
             -workspace App.xcworkspace \
@@ -49,7 +46,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO
 
       - name: Package to .ipa
-        working-directory: photo-gallery/ios/App
+        working-directory: ios/App
         run: |
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/App.app Payload/
@@ -59,4 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: photo-gallery-ipa
-          path: photo-gallery/ios/App/photo-gallery.ipa
+          path: ios/App/photo-gallery.ipa
