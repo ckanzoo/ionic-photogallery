@@ -30,24 +30,41 @@ jobs:
           npx cap add ios || true
           npx cap sync ios
 
-      - name: Build iOS App (.app)
-        working-directory: ios/App
+      - name: Build and Package IPA
         run: |
+          cd ios/App
+          
+          # Hanapin kung workspace o xcodeproj ang present
+          if [ -d "App.xcworkspace" ]; then
+            TARGET_FLAG="-workspace App.xcworkspace"
+          else
+            TARGET_FLAG="-project App.xcodeproj"
+          fi
+          
+          echo "Building using $TARGET_FLAG..."
+          
+          # I-compile ang iOS project bilang Release
           xcodebuild clean build \
-            -workspace App.xcworkspace \
+            $TARGET_FLAG \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY=""
 
-      - name: Package to .ipa
-        working-directory: ios/App
-        run: |
+          # Hanapin ang nabuong App.app at i-package bilang .ipa
           mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          APP_PATH=$(find build -name "App.app" -type d | head -n 1)
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: App.app not found!"
+            exit 1
+          fi
+          
+          echo "Found app at $APP_PATH, packaging into IPA..."
+          cp -r "$APP_PATH" Payload/
           zip -r photo-gallery.ipa Payload
 
       - name: Upload IPA Artifact
