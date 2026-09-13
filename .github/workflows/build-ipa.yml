@@ -25,47 +25,36 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Ensure Capacitor iOS Platform
+      - name: Setup Capacitor iOS
         run: |
           npx cap add ios || true
           npx cap sync ios
 
       - name: Build and Package IPA
+        working-directory: ios/App
         run: |
-          cd ios/App
-          
-          # Hanapin kung workspace o xcodeproj ang present
+          TARGET_FLAG="-project App.xcodeproj"
           if [ -d "App.xcworkspace" ]; then
             TARGET_FLAG="-workspace App.xcworkspace"
-          else
-            TARGET_FLAG="-project App.xcodeproj"
           fi
-          
-          echo "Building using $TARGET_FLAG..."
-          
-          # I-compile ang iOS project bilang Release
-          xcodebuild clean build \
+
+          echo "Compiling using $TARGET_FLAG..."
+
+          xcodebuild clean archive \
             $TARGET_FLAG \
             -scheme App \
             -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
+            -destination "generic/platform=iOS" \
+            -archivePath build/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
 
-          # Hanapin ang nabuong App.app at i-package bilang .ipa
+          echo "Packaging Payload into IPA..."
           mkdir -p Payload
-          APP_PATH=$(find build -name "App.app" -type d | head -n 1)
-          
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: App.app not found!"
-            exit 1
-          fi
-          
-          echo "Found app at $APP_PATH, packaging into IPA..."
-          cp -r "$APP_PATH" Payload/
-          zip -r photo-gallery.ipa Payload
+          cp -r build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -qr photo-gallery.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
