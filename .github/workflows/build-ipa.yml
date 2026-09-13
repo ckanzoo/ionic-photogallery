@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout Source
@@ -39,9 +39,8 @@ jobs:
             TARGET_FLAG="-workspace App.xcworkspace"
           fi
 
-          echo "Compiling using $TARGET_FLAG..."
+          echo "Compiling with Xcode on macOS 15 using $TARGET_FLAG..."
 
-          # Direct build lang para hindi mag-require ng Apple Developer account
           xcodebuild clean build \
             $TARGET_FLAG \
             -scheme App \
