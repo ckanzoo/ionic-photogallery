@@ -4,7 +4,7 @@
       <ion-toolbar class="custom-toolbar">
         <ion-title>
           <div class="header-title-container">
-            <span class="main-title">Photo Gallery</span>
+            <span class="main-title">Obscura</span>
             <span class="photo-counter">{{ counterText }}</span>
           </div>
         </ion-title>
@@ -40,11 +40,21 @@
         </div>
       </div>
 
-      <!-- Full-Screen Lightbox Modal with Photo Filters -->
+      <!-- Full-Screen Lightbox Modal -->
       <ion-modal :is-open="isPreviewOpen" @didDismiss="closePreview" class="preview-modal">
         <div class="preview-backdrop">
-          <button class="close-modal-btn" @click="closePreview">✕</button>
+          <!-- Top Controls -->
+          <div class="modal-top-bar">
+            <button class="top-action-btn" @click="sharePhoto" title="Share Photo">
+              <ion-icon :icon="shareOutline" />
+            </button>
+            <button class="top-action-btn" @click="downloadToDevice" title="Save to Device">
+              <ion-icon :icon="downloadOutline" />
+            </button>
+            <button class="top-action-btn close-btn" @click="closePreview">✕</button>
+          </div>
           
+          <!-- Large Image Display -->
           <div class="modal-image-container">
             <img
               v-if="previewTarget"
@@ -56,7 +66,7 @@
 
           <!-- Filter Selection Presets -->
           <div v-if="previewTarget" class="filters-panel">
-            <span class="filters-label">Filters</span>
+            <span class="filters-label">Film Presets</span>
             <div class="filters-row">
               <button
                 v-for="item in filterPresets"
@@ -70,8 +80,10 @@
             </div>
           </div>
 
+          <!-- Toast Feedback & Metadata -->
           <div v-if="previewTarget" class="modal-caption">
             <span>{{ previewTarget.date }}</span>
+            <span v-if="statusMessage" class="status-badge">{{ statusMessage }}</span>
           </div>
         </div>
       </ion-modal>
@@ -90,7 +102,9 @@ import {
   IonSegmentButton,
   IonLabel,
   IonModal,
+  IonIcon,
 } from "@ionic/vue";
+import { downloadOutline, shareOutline } from "ionicons/icons";
 import { ref, computed, onMounted } from "vue";
 import CameraComponent from "@/components/CameraComponent.vue";
 import PhotoGalleryComponent from "@/components/PhotoGalleryComponent.vue";
@@ -106,8 +120,8 @@ export interface GalleryItem {
 const STORAGE_KEY = "user_captured_photos_v2";
 const photos = ref<GalleryItem[]>([]);
 const selectedSegment = ref<"all" | "favorites">("all");
+const statusMessage = ref("");
 
-// Photo Filter Presets
 const filterPresets = [
   { name: "Normal", css: "none" },
   { name: "B&W", css: "grayscale(100%)" },
@@ -170,12 +184,14 @@ const toggleFavorite = (id: string) => {
 
 const openPreview = (photo: GalleryItem) => {
   previewTarget.value = photo;
+  statusMessage.value = "";
   isPreviewOpen.value = true;
 };
 
 const closePreview = () => {
   isPreviewOpen.value = false;
   previewTarget.value = null;
+  statusMessage.value = "";
 };
 
 const applyFilter = (filterCss: string) => {
@@ -186,6 +202,47 @@ const applyFilter = (filterCss: string) => {
       target.filter = filterCss;
       persistPhotos();
     }
+  }
+};
+
+// I-save ang litrato sa Downloads/Camera Roll
+const downloadToDevice = () => {
+  if (!previewTarget.value) return;
+  try {
+    const link = document.createElement("a");
+    link.href = previewTarget.value.data;
+    link.download = `obscura_${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    statusMessage.value = "Saved to Device!";
+    setTimeout(() => {
+      statusMessage.value = "";
+    }, 2500);
+  } catch (err) {
+    console.error("Save failed", err);
+    statusMessage.value = "Failed to save.";
+  }
+};
+
+// Web Share API (native share sa iOS para sa AirDrop / Photos)
+const sharePhoto = async () => {
+  if (!previewTarget.value) return;
+  try {
+    if (navigator.share) {
+      const res = await fetch(previewTarget.value.data);
+      const blob = await res.blob();
+      const file = new File([blob], `obscura_${Date.now()}.jpg`, { type: "image/jpeg" });
+      await navigator.share({
+        files: [file],
+        title: "Obscura Capture",
+      });
+    } else {
+      downloadToDevice();
+    }
+  } catch (err) {
+    console.warn("Share sheet closed or unsupported", err);
   }
 };
 
@@ -219,9 +276,9 @@ const counterText = computed(() => {
 }
 
 .main-title {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  letter-spacing: -0.3px;
+  letter-spacing: 0.5px;
 }
 
 .photo-counter {
@@ -270,7 +327,7 @@ const counterText = computed(() => {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
-/* Modal Lightbox Styling */
+/* Lightbox Modal */
 .preview-backdrop {
   position: relative;
   width: 100%;
@@ -283,19 +340,34 @@ const counterText = computed(() => {
   padding: 50px 16px 30px 16px;
 }
 
-.close-modal-btn {
+.modal-top-bar {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  z-index: 10;
+}
+
+.top-action-btn {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border: none;
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  font-size: 16px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 10;
+  backdrop-filter: blur(10px);
+}
+
+.top-action-btn:active {
+  transform: scale(0.9);
 }
 
 .modal-image-container {
@@ -365,5 +437,14 @@ const counterText = computed(() => {
   margin-top: 10px;
   color: #636366;
   font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-badge {
+  color: #30d158;
+  font-weight: 600;
 }
 </style>
