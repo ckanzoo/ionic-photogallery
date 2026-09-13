@@ -31,8 +31,9 @@ jobs:
           npx cap sync ios
 
       - name: Build and Package IPA
-        working-directory: ios/App
         run: |
+          cd ios/App
+
           TARGET_FLAG="-project App.xcodeproj"
           if [ -d "App.xcworkspace" ]; then
             TARGET_FLAG="-workspace App.xcworkspace"
@@ -40,20 +41,29 @@ jobs:
 
           echo "Compiling using $TARGET_FLAG..."
 
-          xcodebuild clean archive \
+          # Direct build lang para hindi mag-require ng Apple Developer account
+          xcodebuild clean build \
             $TARGET_FLAG \
             -scheme App \
             -configuration Release \
+            -sdk iphoneos \
             -destination "generic/platform=iOS" \
-            -archivePath build/App.xcarchive \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            PROVISIONING_PROFILE_SPECIFIER=""
+            CODE_SIGN_IDENTITY=""
 
-          echo "Packaging Payload into IPA..."
+          echo "Locating built App.app..."
+          APP_PATH=$(find build -name "App.app" -type d | head -n 1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: App.app not found!"
+            exit 1
+          fi
+
+          echo "Packaging $APP_PATH into IPA..."
           mkdir -p Payload
-          cp -r build/App.xcarchive/Products/Applications/App.app Payload/
+          cp -r "$APP_PATH" Payload/
           zip -qr photo-gallery.ipa Payload
 
       - name: Upload IPA Artifact
