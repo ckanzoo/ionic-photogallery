@@ -25,12 +25,10 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Sync Capacitor iOS
-        run: npx cap sync ios
-
-      - name: Install CocoaPods
-        working-directory: ios/App
-        run: pod install
+      - name: Ensure Capacitor iOS Platform
+        run: |
+          npx cap add ios || true
+          npx cap sync ios
 
       - name: Build iOS App (.app)
         working-directory: ios/App
